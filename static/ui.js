@@ -6185,14 +6185,40 @@ function _cliToolCardHasDiffSnippet(resultSnippet, patchSnippet){
 function _captureMessageScrollSnapshot(){
   const el=$('messages');
   if(!el) return null;
-  return {top:el.scrollTop};
+  const containerTop=el.getBoundingClientRect().top;
+  let anchorMsgIdx=null;
+  let anchorOffset=null;
+  const anchors=el.querySelectorAll('.msg-row[data-msg-idx], .assistant-segment[data-msg-idx]');
+  for(const node of anchors){
+    if(!node||!node.dataset) continue;
+    const rect=node.getBoundingClientRect();
+    if(rect.bottom<=containerTop) continue;
+    anchorMsgIdx=node.dataset.msgIdx;
+    anchorOffset=rect.top-containerTop;
+    break;
+  }
+  return {
+    top:el.scrollTop,
+    anchorMsgIdx,
+    anchorOffset,
+  };
 }
 function _restoreMessageScrollSnapshot(snapshot){
   const el=$('messages');
   if(!el||!snapshot) return;
+  const containerTop=el.getBoundingClientRect().top;
   const maxTop=Math.max(0,el.scrollHeight-el.clientHeight);
+  let targetTop=Number(snapshot.top)||0;
+  if(snapshot.anchorMsgIdx!==undefined&&snapshot.anchorMsgIdx!==null&&snapshot.anchorOffset!==undefined&&snapshot.anchorOffset!==null){
+    const selector=`.msg-row[data-msg-idx="${snapshot.anchorMsgIdx}"], .assistant-segment[data-msg-idx="${snapshot.anchorMsgIdx}"]`;
+    const anchor=el.querySelector(selector);
+    if(anchor){
+      const rect=anchor.getBoundingClientRect();
+      targetTop=el.scrollTop+(rect.top-containerTop)-Number(snapshot.anchorOffset||0);
+    }
+  }
   _programmaticScroll=true;
-  el.scrollTop=Math.max(0,Math.min(Number(snapshot.top)||0,maxTop));
+  el.scrollTop=Math.max(0,Math.min(targetTop,maxTop));
   _lastScrollTop=el.scrollTop;
   requestAnimationFrame(()=>{ setTimeout(()=>{_programmaticScroll=false;},0); });
 }

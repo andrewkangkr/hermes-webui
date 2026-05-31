@@ -88,6 +88,7 @@ def test_user_scroll_cancels_delayed_bottom_settling():
 
 def test_preserve_scroll_restores_unpinned_viewport_after_dom_rebuild():
     render = _function_body(UI_JS, "function renderMessages")
+    capture = _function_body(UI_JS, "function _captureMessageScrollSnapshot")
     after_render = _function_body(UI_JS, "function _scrollAfterMessageRender")
     restore = _function_body(UI_JS, "function _restoreMessageScrollSnapshot")
 
@@ -101,5 +102,10 @@ def test_preserve_scroll_restores_unpinned_viewport_after_dom_rebuild():
     )
     assert "if(_scrollPinned) scrollIfPinned()" in after_render
     assert "else _restoreMessageScrollSnapshot(scrollSnapshot)" in after_render
-    assert "el.scrollTop=Math.max(0,Math.min(Number(snapshot.top)||0,maxTop))" in restore
+    assert "const anchors=el.querySelectorAll('.msg-row[data-msg-idx], .assistant-segment[data-msg-idx]')" in capture
+    assert "anchorMsgIdx=node.dataset.msgIdx" in capture
+    assert "anchorOffset=rect.top-containerTop" in capture
+    assert "const selector=`.msg-row[data-msg-idx=\"${snapshot.anchorMsgIdx}\"], .assistant-segment[data-msg-idx=\"${snapshot.anchorMsgIdx}\"]`" in restore
+    assert "targetTop=el.scrollTop+(rect.top-containerTop)-Number(snapshot.anchorOffset||0)" in restore
+    assert "el.scrollTop=Math.max(0,Math.min(targetTop,maxTop))" in restore
     assert "_programmaticScroll=true" in restore
